@@ -1,0 +1,76 @@
+import requests
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime
+
+class DeFiSynth:
+    def __init__(self):
+        self.api_url = 'https://api.llama.fi'
+
+    def get_protocols(self) -> pd.DataFrame:
+        """Fetches the list of DeFi protocols."""
+        url = f"{self.api_url}/protocols"
+        response = requests.get(url)
+        protocols = response.json()
+        return pd.DataFrame(protocols)
+
+    def get_protocol_data(self, protocol_slug: str) -> dict:
+        """Fetches data for a specific DeFi protocol."""
+        url = f"{self.api_url}/protocol/{protocol_slug}"
+        response = requests.get(url)
+        return response.json()
+
+    def get_historical_tvl(self, protocol_slug: str) -> pd.DataFrame:
+        """Fetches historical TVL data for a specific DeFi protocol."""
+        url = f"{self.api_url}/protocol/{protocol_slug}"
+        response = requests.get(url)
+        tvl_data = response.json().get('tvl', [])
+        df = pd.DataFrame(tvl_data)
+        df['date'] = pd.to_datetime(df['date'], unit='s')
+        df.set_index('date', inplace=True)
+        return df
+
+    def analyze_defi_metrics(self, protocol_slug: str) -> dict:
+        """Analyzes key metrics for a specific DeFi protocol."""
+        data = self.get_protocol_data(protocol_slug)
+        metrics = {
+            'protocol': data.get('name'),
+            'chain': data.get('chain'),
+            'tvl': data.get('tvl'),
+            'users': data.get('users'),
+            'transactions': data.get('transactions')
+        }
+        return metrics
+
+    def plot_tvl_trends(self, protocol_slug: str):
+        """Plots historical TVL trends for a specific DeFi protocol."""
+        df = self.get_historical_tvl(protocol_slug)
+        if df.empty:
+            print("No historical TVL data found.")
+            return
+
+        plt.figure(figsize=(12, 6))
+        df['totalLiquidityUSD'].plot()
+        plt.title(f'{protocol_slug.capitalize()} TVL Trend')
+        plt.xlabel('Date')
+        plt.ylabel('Total Value Locked (USD)')
+        plt.grid(True)
+        plt.show()
+
+# Example Usage
+if __name__ == "__main__":
+    defi_synth = DeFiSynth()
+
+    # Fetch and Display DeFi Protocols
+    protocols = defi_synth.get_protocols()
+    print("Available DeFi Protocols:")
+    print(protocols[['slug', 'name', 'chain']].head())
+
+    # Fetch and Display Protocol Data
+    protocol_slug = 'aave'  # Replace with the protocol slug you want to analyze
+    protocol_data = defi_synth.analyze_defi_metrics(protocol_slug)
+    print(f"Data for protocol {protocol_slug.capitalize()}:")
+    print(protocol_data)
+
+    # Plot Historical TVL Trends
+    defi_synth.plot_tvl_trends(protocol_slug=protocol_slug)
